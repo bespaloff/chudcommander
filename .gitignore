@@ -13,3 +13,12 @@ dist/
 !.env.example
 *.p12
 *.pem
+*.p8
+*.pfx
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+.netrc
+.npmrc
