@@ -31,6 +31,9 @@ final class ApplicationOpenCoordinator {
 
 @MainActor
 final class ChadCommanderApplicationDelegate: NSObject, NSApplicationDelegate, @preconcurrency SPUStandardUserDriverDelegate {
+    /// Matches the identifier SwiftUI derives from the `Window` scene's id.
+    static let windowIdentifier = "commander"
+
     private(set) var updaterController: SPUStandardUpdaterController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -46,6 +49,20 @@ final class ChadCommanderApplicationDelegate: NSObject, NSApplicationDelegate, @
 
     func application(_ application: NSApplication, open urls: [URL]) {
         ApplicationOpenCoordinator.shared.receive(urls)
+        showCommanderWindow()
+    }
+
+    /// Clicking the dock icon brings the one commander window back rather than
+    /// opening a second one.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showCommanderWindow() }
+        return true
+    }
+
+    private func showCommanderWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        let commander = NSApp.windows.first { $0.identifier?.rawValue.contains(Self.windowIdentifier) == true }
+        (commander ?? NSApp.windows.first { $0.canBecomeMain })?.makeKeyAndOrderFront(nil)
     }
 
     @objc func checkForUpdates(_ sender: Any?) {

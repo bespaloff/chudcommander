@@ -206,15 +206,29 @@ final class AppState: ObservableObject {
 
     func setActive(_ side: PaneSide) { activeSide = side }
 
+    /// Folders opened from the Finder join the single window as tabs of the
+    /// left pane rather than opening another commander.
     func handleOpenURLs(_ urls: [URL]) {
         let destinations = urls.compactMap(openDestination(for:))
-        guard let first = destinations.first else { return }
+        guard !destinations.isEmpty else { return }
 
-        activePane.navigate(to: first.folder, selecting: first.selection)
-        if destinations.count > 1 {
-            let second = destinations[1]
-            inactivePane.navigate(to: second.folder, selecting: second.selection)
+        for destination in destinations {
+            leftPane.revealInTab(destination.folder, selecting: destination.selection)
         }
+        setActive(.left)
+    }
+
+    /// Moves a dragged tab into `destination` at `index`, either reordering it
+    /// inside its own pane or handing it to the other one.
+    @discardableResult
+    func moveTab(_ payload: TabDragPayload, to destination: PaneSide, at index: Int) -> Bool {
+        if payload.side == destination {
+            return pane(destination).moveTab(payload.tabID, to: index)
+        }
+        guard let detached = pane(payload.side).detachTab(payload.tabID) else { return false }
+        pane(destination).adoptTab(detached, at: index)
+        setActive(destination)
+        return true
     }
 
     func switchPane() {

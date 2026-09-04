@@ -12,7 +12,8 @@ A fast, native, keyboard-first dual-pane file manager for macOS. Chad Commander 
 - Background copy/move/trash operations with non-destructive conflict naming (`report copy.txt`) and progress feedback.
 - Native Quick Look, contextual menus, multi-selection, light/dark appearance, and accessibility metadata.
 - Persistent favorite folders with name/path filtering and keyboard navigation.
-- Persistent tabs for both panes, including each pane's latest active folder.
+- Persistent tabs for both panes, including each pane's latest active folder. Drag a tab to reorder it or to hand it to the other pane; each pane's first tab stays put as its anchor.
+- A single window. Folders opened from the Finder or another application join the left pane as tabs instead of opening a second commander.
 - Adjustable interface size with keyboard zoom controls.
 - Optional cached folder-size calculation for the active tab, with a global automatic mode that is off by default.
 - Optional default-folder handling with macOS consent and a one-click Finder restore in Settings.

@@ -29,3 +29,56 @@ enum PaneSide: String, CaseIterable, Sendable {
 
     var opposite: PaneSide { self == .left ? .right : .left }
 }
+
+/// A tab lifted out of one pane, on its way into the other.
+struct DetachedPaneTab: Sendable {
+    let tab: PaneTab
+    let calculatesFolderSizes: Bool
+}
+
+/// Identifies the tab a drag started from. Encoded as plain text so the drag
+/// travels through an `NSItemProvider`, and decoded again on drop so a stray
+/// text drag from another app can never be mistaken for one of our tabs.
+struct TabDragPayload: Equatable, Sendable {
+    private static let marker = "chad-commander.tab"
+
+    let side: PaneSide
+    let tabID: UUID
+
+    init(side: PaneSide, tabID: UUID) {
+        self.side = side
+        self.tabID = tabID
+    }
+
+    init?(encoded: String) {
+        let fields = encoded.split(separator: ":", omittingEmptySubsequences: false)
+        guard fields.count == 3,
+              fields[0] == Self.marker,
+              let side = PaneSide(rawValue: String(fields[1])),
+              let tabID = UUID(uuidString: String(fields[2]))
+        else { return nil }
+        self.side = side
+        self.tabID = tabID
+    }
+
+    var encoded: String {
+        "\(Self.marker):\(side.rawValue):\(tabID.uuidString)"
+    }
+}
+
+/// Where a dragged tab would land in a tab strip.
+struct TabDropTarget: Equatable, Sendable {
+    let side: PaneSide
+    let index: Int
+}
+
+enum TabStripLayout {
+    /// The slot a drop at `x` belongs in, given each tab's horizontal midpoint.
+    /// Never returns 0: the anchor tab keeps the first slot.
+    static func insertionIndex(forX x: CGFloat, tabMidpoints: [CGFloat]) -> Int {
+        let passed = tabMidpoints.reduce(into: 0) { count, midpoint in
+            if x > midpoint { count += 1 }
+        }
+        return min(max(passed, 1), max(tabMidpoints.count, 1))
+    }
+}

@@ -6,7 +6,9 @@ struct ChadCommanderApp: App {
     @StateObject private var state = AppState()
 
     var body: some Scene {
-        WindowGroup("Chad Commander") {
+        // A single window, never a group: opening folders from the Finder adds
+        // tabs to this window instead of spawning another commander.
+        Window("Chad Commander", id: "commander") {
             ContentView()
                 .environmentObject(state)
         }

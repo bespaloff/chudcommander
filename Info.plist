@@ -61,5 +61,18 @@
 	<string>Tt8rHNHjM64WzdHoQwf56mPGvq4dlv5y/x55qvH1LgM=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>3600</integer>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Chad Commander Tab</string>
+			<key>UTTypeIdentifier</key>
+			<string>org.chadcommander.ChadCommander.tab</string>
+		</dict>
+	</array>
 </dict>
 </plist>

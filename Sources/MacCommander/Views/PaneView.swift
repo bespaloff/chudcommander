@@ -25,7 +25,7 @@ struct PaneView: View {
 
     private func paneContent(paneHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
-            TabStrip(model: model)
+            TabStrip(model: model, side: side)
             Divider()
             LocationBar(model: model)
             if !model.filterQuery.isEmpty {

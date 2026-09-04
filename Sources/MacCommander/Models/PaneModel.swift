@@ -300,7 +300,7 @@ final class PaneModel: ObservableObject {
         navigate(to: location.deletingLastPathComponent(), selecting: child)
     }
 
-    func addTab(location: URL? = nil) {
+    func addTab(location: URL? = nil, selecting: URL? = nil) {
         let tab = PaneTab(location: location ?? self.location)
         tabs.append(tab)
         activeTabID = tab.id
@@ -308,7 +308,8 @@ final class PaneModel: ObservableObject {
         clearFilter()
         selection = []
         cursorURL = nil
-        reload()
+        reload(selecting: selecting)
+        if terminalVisible { terminal.changeDirectory(to: self.location) }
     }
 
     func showSearchResults(_ results: [SearchMatch], query: String, root: URL) {
@@ -348,6 +349,78 @@ final class PaneModel: ObservableObject {
             if terminalVisible { terminal.changeDirectory(to: location) }
         }
         onSessionChange?()
+    }
+
+    /// The pane's leftmost tab. It anchors the pane, so it is never dragged
+    /// away and nothing is ever dropped in front of it.
+    func isAnchorTab(_ id: UUID) -> Bool {
+        tabs.first?.id == id
+    }
+
+    /// Whether the tab can be reordered inside this pane or handed to the other one.
+    func canMoveTab(_ id: UUID) -> Bool {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return false }
+        return index > 0
+    }
+
+    /// Moves a tab inside this pane. `destination` is the slot the tab should
+    /// land in, counted in the tab list as it looks before the move.
+    @discardableResult
+    func moveTab(_ id: UUID, to destination: Int) -> Bool {
+        guard let index = tabs.firstIndex(where: { $0.id == id }), index > 0 else { return false }
+        let target = clampedInsertionIndex(destination)
+        guard target != index, target != index + 1 else { return false }
+        let tab = tabs.remove(at: index)
+        tabs.insert(tab, at: target > index ? target - 1 : target)
+        onSessionChange?()
+        return true
+    }
+
+    /// Removes a movable tab so another pane can adopt it.
+    func detachTab(_ id: UUID) -> DetachedPaneTab? {
+        guard let index = tabs.firstIndex(where: { $0.id == id }), index > 0 else { return nil }
+        let tab = tabs.remove(at: index)
+        let calculatesFolderSizes = folderSizeEnabledTabs.remove(id) != nil
+        if activeTabID == id {
+            activeTabID = tabs[min(index, tabs.count - 1)].id
+            clearFilter()
+            selection = []
+            cursorURL = nil
+            reload()
+            if terminalVisible { terminal.changeDirectory(to: location) }
+        }
+        onSessionChange?()
+        return DetachedPaneTab(tab: tab, calculatesFolderSizes: calculatesFolderSizes)
+    }
+
+    /// Adopts a tab detached from the other pane and makes it active.
+    func adoptTab(_ detached: DetachedPaneTab, at destination: Int) {
+        let target = clampedInsertionIndex(destination)
+        tabs.insert(detached.tab, at: target)
+        if detached.calculatesFolderSizes { folderSizeEnabledTabs.insert(detached.tab.id) }
+        activeTabID = detached.tab.id
+        onSessionChange?()
+        clearFilter()
+        selection = []
+        cursorURL = nil
+        reload()
+        if terminalVisible { terminal.changeDirectory(to: location) }
+    }
+
+    /// Opens `location` in a new tab, or reuses the tab already showing it.
+    func revealInTab(_ location: URL, selecting: URL? = nil) {
+        let target = location.standardizedFileURL
+        if let existing = tabs.first(where: { $0.virtualItems == nil && $0.location == target }) {
+            selectTab(existing.id)
+            reload(selecting: selecting)
+            return
+        }
+        addTab(location: target, selecting: selecting)
+    }
+
+    /// Keeps the anchor tab first and the index inside the tab list.
+    private func clampedInsertionIndex(_ index: Int) -> Int {
+        min(max(index, 1), tabs.count)
     }
 
     func toggleTerminal() {
