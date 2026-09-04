@@ -1,0 +1,92 @@
+import AppKit
+import SwiftUI
+
+struct OpenWithBar: View {
+    @EnvironmentObject private var state: AppState
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let item = state.primarySelection {
+                FileIcon(url: item.url, size: 17)
+                Text(item.name).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                Text(item.kind).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 8)
+
+                if !item.isDirectory || item.isPackage {
+                    let defaultApp = OpenWithService.defaultApplication(for: item.url)
+                    Button {
+                        state.openSelection()
+                    } label: {
+                        Label(defaultApp.map { "Open in \(appName($0))" } ?? "Open", systemImage: "arrow.up.forward.app")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlTooltip("Open in the default application", shortcut: "F4")
+
+                    Menu {
+                        ForEach(OpenWithService.applications(for: item.url), id: \.self) { app in
+                            Button(appName(app)) { state.openSelection(with: app) }
+                                .controlTooltip("Open \(item.name) in \(appName(app))")
+                        }
+                    } label: {
+                        AlternativeAppIcon()
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .controlTooltip("Choose another application to open this item")
+                }
+            } else {
+                Image(systemName: "rectangle.split.2x1").font(.system(size: 14)).foregroundStyle(.tint)
+                Text("Select a file to see its applications").font(.system(size: 11)).foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            Divider().frame(height: 18)
+            Button { state.searchPresented = true } label: {
+                compactAction("Search", shortcut: "⌘F", symbol: "magnifyingglass")
+            }
+                .keyboardShortcut("f", modifiers: .command)
+                .buttonStyle(.borderless)
+                .controlTooltip("Find files", shortcut: "⌘F")
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 7)
+        .frame(height: 32)
+        .background(.bar)
+    }
+
+    private func appName(_ url: URL) -> String {
+        url.deletingPathExtension().lastPathComponent
+    }
+
+    private func compactAction(_ title: String, shortcut: String, symbol: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+            Text(title).font(.system(size: 10.5, weight: .medium))
+            Text(shortcut)
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct AlternativeAppIcon: View {
+    var body: some View {
+        if let url = Bundle.module.url(forResource: "alternative-app", withExtension: "svg"),
+           let image = NSImage(contentsOf: url) {
+            Image(nsImage: template(image))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 14, height: 14)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Other applications")
+        } else {
+            Image(systemName: "square.stack.3d.up")
+                .accessibilityLabel("Other applications")
+        }
+    }
+
+    private func template(_ image: NSImage) -> NSImage {
+        image.isTemplate = true
+        return image
+    }
+}
