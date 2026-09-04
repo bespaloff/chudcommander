@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PaneView: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.interfaceScale) private var scale
     @ObservedObject var model: PaneModel
     let side: PaneSide
     @State private var isRequestingFolderAccess = false
@@ -16,7 +17,7 @@ struct PaneView: View {
         }
         .background(state.activeSide == side ? Color.accentColor.opacity(0.035) : Color.clear)
         .overlay {
-            if state.activeSide == side { RoundedRectangle(cornerRadius: 2).stroke(Color.accentColor.opacity(0.65), lineWidth: 1) }
+            if state.activeSide == side { RoundedRectangle(cornerRadius: 2 * scale).stroke(Color.accentColor.opacity(0.65), lineWidth: 1 * scale) }
         }
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { state.setActive(side) })
@@ -29,7 +30,7 @@ struct PaneView: View {
             LocationBar(model: model)
             if !model.filterQuery.isEmpty {
                 Divider()
-                HStack(spacing: 5) {
+                HStack(spacing: 5 * scale) {
                     Image(systemName: "line.3.horizontal.decrease.circle.fill")
                         .foregroundStyle(.secondary)
                     TextField("Filter filenames", text: Binding(
@@ -37,12 +38,12 @@ struct PaneView: View {
                         set: { model.setFilterQuery($0) }
                     ))
                     .textFieldStyle(.plain)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11 * scale))
                     .onExitCommand { model.clearFilter() }
                     .controlTooltip("Filter filenames in this pane", shortcut: "Esc to clear")
                     Spacer(minLength: 0)
                     Text("\(model.filteredItems.count) match\(model.filteredItems.count == 1 ? "" : "es")")
-                        .font(.system(size: 9.5))
+                        .font(.system(size: 9.5 * scale))
                         .foregroundStyle(.secondary)
                     Button { model.clearFilter() } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -51,8 +52,9 @@ struct PaneView: View {
                     .buttonStyle(.plain)
                     .controlTooltip("Clear the filename filter", shortcut: "Esc")
                 }
-                .padding(.horizontal, 6)
-                .frame(height: 22)
+                .padding(.horizontal, 6 * scale)
+                .frame(height: 22 * scale)
+                .font(.system(size: 11 * scale))
                 .background(Color(nsColor: .controlBackgroundColor))
             }
             Divider()
@@ -65,7 +67,7 @@ struct PaneView: View {
                 }
 
                 if model.isLoading {
-                    ProgressView().controlSize(.small).padding(10).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    ProgressView().controlSize(.small).padding(10 * scale).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8 * scale))
                 } else if let error = model.errorMessage {
                     if model.accessDenied {
                         ContentUnavailableView {
@@ -97,7 +99,7 @@ struct PaneView: View {
             if model.terminalVisible {
                 terminalResizeHandle(paneHeight: paneHeight)
                 TerminalView(session: model.terminal) { model.toggleTerminal() }
-                    .frame(height: CGFloat(model.terminalHeight(forPaneHeight: Double(paneHeight))))
+                    .frame(height: CGFloat(model.terminalHeight(forPaneHeight: Double(paneHeight / scale))) * scale)
             }
 
             Divider()
@@ -109,14 +111,14 @@ struct PaneView: View {
                     Text("\(model.selectedItems.count) selected  |  \(ByteCountFormatter.string(fromByteCount: model.selectedSize, countStyle: .file))")
                 }
             }
-            .font(.system(size: 9.5)).foregroundStyle(.secondary)
-            .padding(.horizontal, 5).frame(height: 17)
+            .font(.system(size: 9.5 * scale)).foregroundStyle(.secondary)
+            .padding(.horizontal, 5 * scale).frame(height: 17 * scale)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func terminalResizeHandle(paneHeight: CGFloat) -> some View {
-        let maximum = PaneModel.maximumTerminalHeight(forPaneHeight: Double(paneHeight))
+        let maximum = PaneModel.maximumTerminalHeight(forPaneHeight: Double(paneHeight / scale))
         let isHighlighted = isResizingTerminal || isHoveringTerminalHandle
 
         return ZStack {
@@ -125,11 +127,11 @@ struct PaneView: View {
                 .frame(height: 1)
             Capsule()
                 .fill(Color(nsColor: .separatorColor))
-                .frame(width: 28, height: 3)
+                .frame(width: 28 * scale, height: 3 * scale)
                 .opacity(isHighlighted ? 0.95 : 0.45)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 7)
+        .frame(height: 7 * scale)
         .background(isHighlighted ? Color.accentColor.opacity(0.08) : Color.clear)
         .contentShape(Rectangle())
         .onHover { isHovering in
@@ -148,11 +150,15 @@ struct PaneView: View {
                 .onChanged { value in
                     if !isResizingTerminal {
                         isResizingTerminal = true
-                        terminalResizeStartHeight = model.terminalHeight(forPaneHeight: Double(paneHeight))
+                        terminalResizeStartHeight = model.terminalHeight(
+                            forPaneHeight: Double(paneHeight / scale)
+                        )
                     }
                     NSCursor.resizeUpDown.set()
+                    // Heights are stored unscaled, so the drag is measured in
+                    // the same units the zoom multiplies.
                     model.setTerminalHeight(
-                        terminalResizeStartHeight - Double(value.translation.height),
+                        terminalResizeStartHeight - Double(value.translation.height / scale),
                         maximum: maximum
                     )
                 }
@@ -168,9 +174,9 @@ struct PaneView: View {
         .onTapGesture(count: 2) { model.resetTerminalHeight() }
         .accessibilityElement()
         .accessibilityLabel("Resize terminal")
-        .accessibilityValue("\(Int(model.terminalHeight(forPaneHeight: Double(paneHeight)))) points")
+        .accessibilityValue("\(Int(model.terminalHeight(forPaneHeight: Double(paneHeight / scale)))) points")
         .accessibilityAdjustableAction { direction in
-            let current = model.terminalHeight(forPaneHeight: Double(paneHeight))
+            let current = model.terminalHeight(forPaneHeight: Double(paneHeight / scale))
             switch direction {
             case .increment:
                 model.setTerminalHeight(current + 20, maximum: maximum)

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct FileListView: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.interfaceScale) private var scale
     @ObservedObject var model: PaneModel
     let side: PaneSide
     @FocusState private var listFocused: Bool
@@ -12,23 +13,23 @@ struct FileListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: FileListMetrics.columnSpacing) {
+            HStack(spacing: FileListMetrics.columnSpacing * scale) {
                 sortButton(.name, width: nil)
                 Spacer(minLength: 0)
                 ForEach(visibleColumns) { column in
                     resizableSortButton(for: column)
                 }
                 columnsMenu
-                    .frame(width: FileListMetrics.columnsMenuWidth)
+                    .frame(width: FileListMetrics.columnsMenuWidth * scale)
             }
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(.system(size: 10.5 * scale, weight: .semibold))
             .foregroundStyle(.secondary)
             // Line the header up with the row content: names start after the
             // row inset and icon, and the trailing edge leaves room for the
             // columns menu so every header sits above its own column.
-            .padding(.leading, FileListMetrics.rowInset + FileListMetrics.iconWidth + FileListMetrics.columnSpacing)
-            .padding(.trailing, FileListMetrics.rowInset)
-            .frame(height: 20)
+            .padding(.leading, (FileListMetrics.rowInset + FileListMetrics.iconWidth + FileListMetrics.columnSpacing) * scale)
+            .padding(.trailing, FileListMetrics.rowInset * scale)
+            .frame(height: 20 * scale)
             .background(Color(nsColor: .controlBackgroundColor))
 
             ScrollViewReader { proxy in
@@ -37,15 +38,17 @@ struct FileListView: View {
                         .id(item.url)
                         .listRowInsets(EdgeInsets(
                             top: 0,
-                            leading: FileListMetrics.rowInset,
+                            leading: FileListMetrics.rowInset * scale,
                             bottom: 0,
-                            trailing: FileListMetrics.rowInset + FileListMetrics.columnsMenuWidth + FileListMetrics.columnSpacing
+                            trailing: (FileListMetrics.rowInset
+                                + FileListMetrics.columnsMenuWidth
+                                + FileListMetrics.columnSpacing) * scale
                         ))
                         .listRowSeparator(.hidden)
                         .listRowBackground(selectionBackground(for: item))
                 }
                 .listStyle(.plain)
-                .environment(\.defaultMinListRowHeight, 20)
+                .environment(\.defaultMinListRowHeight, 20 * scale)
                 .focusable(true)
                 .focused($listFocused)
                 .onChange(of: model.cursorURL) { _, url in
@@ -67,10 +70,10 @@ struct FileListView: View {
 
     @ViewBuilder
     private func itemRow(_ item: FileItem) -> some View {
-        let row = HStack(spacing: FileListMetrics.columnSpacing) {
-            FileIcon(url: item.url, size: FileListMetrics.iconWidth)
+        let row = HStack(spacing: FileListMetrics.columnSpacing * scale) {
+            FileIcon(url: item.url, size: FileListMetrics.iconWidth * scale)
             Text(item.name).lineLimit(1)
-            Spacer(minLength: 3)
+            Spacer(minLength: 3 * scale)
             ForEach(visibleColumns) { column in
                 Text(value(for: column, item: item))
                     .foregroundStyle(detailColor(for: item))
@@ -78,9 +81,9 @@ struct FileListView: View {
                     .frame(width: width(for: column), alignment: alignment(for: column))
             }
         }
-        .font(.system(size: 11.5))
+        .font(.system(size: 11.5 * scale))
         .foregroundStyle(primaryColor(for: item))
-        .frame(height: 20)
+        .frame(height: 20 * scale)
         .contentShape(Rectangle())
         .contextMenu { contextMenu(for: item) }
         .controlTooltip(
@@ -120,9 +123,9 @@ struct FileListView: View {
             if model.sort == sort { model.ascending.toggle() }
             else { model.sort = sort; model.ascending = true }
         } label: {
-            HStack(spacing: 3) {
+            HStack(spacing: 3 * scale) {
                 Text(sort.rawValue).lineLimit(1)
-                if model.sort == sort { Image(systemName: model.ascending ? "chevron.up" : "chevron.down").font(.system(size: 8)) }
+                if model.sort == sort { Image(systemName: model.ascending ? "chevron.up" : "chevron.down").font(.system(size: 8 * scale)) }
             }
             .frame(width: width, alignment: headerAlignment(for: sort))
         }
@@ -149,10 +152,10 @@ struct FileListView: View {
             Rectangle()
                 .fill(Color(nsColor: .separatorColor))
                 .frame(width: 1)
-                .padding(.vertical, 3)
+                .padding(.vertical, 3 * scale)
                 .opacity(isHighlighted ? 0.95 : 0.35)
         }
-        .frame(width: 10, height: 20)
+        .frame(width: 10 * scale, height: 20 * scale)
         .contentShape(Rectangle())
         .onHover { isHovering in
             hoveredResizeColumn = isHovering ? column : nil
@@ -171,14 +174,16 @@ struct FileListView: View {
                     if resizingColumn == column {
                         initialWidth = resizeStartWidth
                     } else {
-                        initialWidth = width(for: column)
+                        initialWidth = CGFloat(model.listColumnWidth(for: column))
                         resizeStartWidth = initialWidth
                         resizingColumn = column
                     }
                     NSCursor.resizeLeftRight.set()
+                    // Widths are stored unscaled, so the drag is measured in
+                    // the same units the zoom multiplies.
                     model.setListColumnWidth(
                         column,
-                        to: Double(initialWidth - value.translation.width)
+                        to: Double(initialWidth - value.translation.width / scale)
                     )
                 }
                 .onEnded { _ in
@@ -195,7 +200,7 @@ struct FileListView: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Resize \(column.rawValue) column")
-        .accessibilityValue("\(Int(width(for: column))) points")
+        .accessibilityValue("\(Int(model.listColumnWidth(for: column))) points")
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment:
@@ -230,7 +235,7 @@ struct FileListView: View {
     }
 
     private func width(for column: FileListColumn) -> CGFloat {
-        CGFloat(model.listColumnWidth(for: column))
+        CGFloat(model.listColumnWidth(for: column)) * scale
     }
 
     private func alignment(for column: FileListColumn) -> Alignment {

@@ -10,6 +10,16 @@ final class TerminalSession: ObservableObject, @unchecked Sendable, LocalProcess
     var onDirectoryChange: ((URL) -> Void)?
 
     let terminalView: LocalProcessTerminalView
+    nonisolated static let baseFontSize: CGFloat = 11
+    /// Kept in step with the interface zoom so terminal text scales with it.
+    private var fontSize: CGFloat = TerminalSession.baseFontSize
+
+    func setFontSize(_ size: CGFloat) {
+        let rounded = (max(size, 6) * 2).rounded() / 2
+        guard rounded != fontSize else { return }
+        fontSize = rounded
+        terminalView.font = NSFont.monospacedSystemFont(ofSize: rounded, weight: .regular)
+    }
 
     init() {
         let options = TerminalOptions(
@@ -23,6 +33,7 @@ final class TerminalSession: ObservableObject, @unchecked Sendable, LocalProcess
             options: options
         )
         terminalView.configureNativeColors()
+        fontSize = Self.baseFontSize
         terminalView.caretColor = .controlAccentColor
         terminalView.processDelegate = self
         terminalView.autoresizingMask = [.width, .height]

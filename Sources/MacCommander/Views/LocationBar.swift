@@ -2,11 +2,12 @@ import SwiftUI
 
 struct LocationBar: View {
     @ObservedObject var model: PaneModel
+    @Environment(\.interfaceScale) private var scale
     @State private var pathText = ""
     @FocusState private var pathIsFocused: Bool
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 3 * scale) {
             Button { model.goBack() } label: { Image(systemName: "chevron.left") }
                 .disabled(!model.canGoBack)
                 .controlTooltip("Go back", shortcut: "⌘[")
@@ -35,7 +36,7 @@ struct LocationBar: View {
 
             TextField("Path", text: $pathText)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: 11 * scale, design: .monospaced))
                 .focused($pathIsFocused)
                 .onSubmit { model.navigate(to: FileSystemService.expandedURL(from: pathText, relativeTo: model.location)) }
                 .controlTooltip("Enter a folder path to open", shortcut: "Return")
@@ -68,7 +69,7 @@ struct LocationBar: View {
                         )
                 }
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 56)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 56 * scale)
             .tint(.blue)
             .controlTooltip("Switch between list and icon views", shortcut: "⌘1 for list; ⌘2 for icons")
 
@@ -109,11 +110,11 @@ struct LocationBar: View {
                 .fixedSize()
                 .controlTooltip("Choose how icons are sorted")
 
-                HStack(spacing: 2) {
+                HStack(spacing: 2 * scale) {
                     Image(systemName: "square.grid.3x3")
                     Slider(value: $model.gridIconSize, in: 32...96, step: 4)
                         .labelsHidden()
-                        .frame(width: 58)
+                        .frame(width: 58 * scale)
                         .controlTooltip("Change icon size")
                     Image(systemName: "square.grid.2x2")
                 }
@@ -125,8 +126,11 @@ struct LocationBar: View {
         }
         .buttonStyle(.borderless)
         .controlSize(.mini)
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
+        // Sets the size of every SF Symbol in the bar, which have no font of
+        // their own.
+        .font(.system(size: 11 * scale))
+        .padding(.horizontal, 4 * scale)
+        .padding(.vertical, 2 * scale)
         .onAppear { pathText = model.location.path }
         .onChange(of: model.location) { _, value in pathText = value.path }
     }

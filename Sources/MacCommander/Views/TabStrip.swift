@@ -2,18 +2,19 @@ import SwiftUI
 
 struct TabStrip: View {
     @ObservedObject var model: PaneModel
+    @Environment(\.interfaceScale) private var scale
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) {
+            HStack(spacing: 2 * scale) {
                 ForEach(model.tabs) { tab in
-                    HStack(spacing: 5) {
+                    HStack(spacing: 5 * scale) {
                         Image(systemName: tab.virtualItems == nil ? "folder" : "magnifyingglass")
-                            .font(.caption)
-                        Text(tab.title).font(.system(size: 10.5, weight: .medium)).lineLimit(1)
+                            .font(.system(size: 10 * scale))
+                        Text(tab.title).font(.system(size: 10.5 * scale, weight: .medium)).lineLimit(1)
                         if model.tabs.count > 1 {
                             Button { model.closeTab(tab.id) } label: {
-                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                                Image(systemName: "xmark").font(.system(size: 8 * scale, weight: .bold))
                             }
                             .buttonStyle(.plain)
                             .controlTooltip(
@@ -22,9 +23,9 @@ struct TabStrip: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 6)
-                    .frame(height: 21)
-                    .background(tab.id == model.activeTabID ? Color.accentColor.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                    .padding(.horizontal, 6 * scale)
+                    .frame(height: 21 * scale)
+                    .background(tab.id == model.activeTabID ? Color.accentColor.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 4 * scale))
                     .contentShape(Rectangle())
                     .onTapGesture { model.selectTab(tab.id) }
                     .controlTooltip("Switch to \(tab.title)")
@@ -36,11 +37,11 @@ struct TabStrip: View {
                 }
                 Button { model.addTab() } label: { Image(systemName: "plus") }
                     .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 20 * scale, height: 20 * scale)
                     .controlTooltip("Open a new tab", shortcut: "⌘T")
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 4 * scale)
+            .padding(.vertical, 2 * scale)
         }
         .background(Color(nsColor: .controlBackgroundColor))
     }

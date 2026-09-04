@@ -3,9 +3,10 @@ import SwiftUI
 
 struct FunctionKeyBar: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.interfaceScale) private var scale
 
     var body: some View {
-        HStack(spacing: 1) {
+        HStack(spacing: 1 * scale) {
             favoriteAction
             action("F3", "View") { state.quickLookSelection() }
             action("F4", "Open") { state.openSelection() }
@@ -16,7 +17,7 @@ struct FunctionKeyBar: View {
             action("F8", "Trash") { state.requestTrash() }
             action("⌥F4", "Terminal", isActive: state.activePane.terminalVisible) { state.toggleTerminal() }
         }
-        .padding(2)
+        .padding(2 * scale)
         .background(.bar)
     }
 
@@ -28,27 +29,27 @@ struct FunctionKeyBar: View {
                 state.toggleFavoriteForActiveFolder()
             }
         } label: {
-            HStack(spacing: 3) {
+            HStack(spacing: 3 * scale) {
                 Image(systemName: state.isActiveFolderFavorite ? "star.fill" : "star")
                     .foregroundStyle(state.isActiveFolderFavorite ? Color.blue : Color.primary)
                 Text("⌘B")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.system(size: 9 * scale, weight: .bold, design: .monospaced))
                     .foregroundStyle(.tint)
                 Text(state.isActiveFolderFavorite ? "Unfavourite" : "Favorite")
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 10.5 * scale))
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, minHeight: 21)
+            .frame(maxWidth: .infinity, minHeight: 21 * scale)
             .background(
                 state.isActiveFolderFavorite
                     ? Color.blue.opacity(0.16)
                     : Color(nsColor: .controlBackgroundColor).opacity(0.7),
-                in: RoundedRectangle(cornerRadius: 3)
+                in: RoundedRectangle(cornerRadius: 3 * scale)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 3).stroke(
+                RoundedRectangle(cornerRadius: 3 * scale).stroke(
                     state.isActiveFolderFavorite ? Color.blue.opacity(0.75) : Color(nsColor: .separatorColor).opacity(0.65),
-                    lineWidth: 0.5
+                    lineWidth: 0.5 * scale
                 )
             )
         }
@@ -68,24 +69,24 @@ struct FunctionKeyBar: View {
         perform: @escaping () -> Void
     ) -> some View {
         Button(action: perform) {
-            HStack(spacing: 3) {
+            HStack(spacing: 3 * scale) {
                 Text(key)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.system(size: 9 * scale, weight: .bold, design: .monospaced))
                     .foregroundStyle(.tint)
                 Text(title)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 10.5 * scale))
                     .foregroundStyle(isActive ? Color.blue : Color.primary)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, minHeight: 21)
+            .frame(maxWidth: .infinity, minHeight: 21 * scale)
             .background(
                 isActive ? Color.blue.opacity(0.16) : Color(nsColor: .controlBackgroundColor).opacity(0.7),
-                in: RoundedRectangle(cornerRadius: 3)
+                in: RoundedRectangle(cornerRadius: 3 * scale)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 3).stroke(
+                RoundedRectangle(cornerRadius: 3 * scale).stroke(
                     isActive ? Color.blue.opacity(0.75) : Color(nsColor: .separatorColor).opacity(0.65),
-                    lineWidth: 0.5
+                    lineWidth: 0.5 * scale
                 )
             )
         }

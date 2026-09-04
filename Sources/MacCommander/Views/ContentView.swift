@@ -7,15 +7,20 @@ struct ContentView: View {
     @State private var keyboardMonitor: KeyboardEventMonitor?
 
     var body: some View {
-        InterfaceScaleContainer(
-            scale: CGFloat(state.interfaceScale),
-            minimumContentSize: CGSize(
-                width: state.minimumContentWidth,
-                height: AppState.minimumContentHeight
+        GeometryReader { proxy in
+            let scale = InterfaceScale.effective(
+                requested: CGFloat(state.interfaceScale),
+                viewport: proxy.size,
+                minimumContentSize: CGSize(
+                    width: state.minimumContentWidth,
+                    height: AppState.minimumContentHeight
+                )
             )
-        ) {
-            commanderInterface
+
+            commanderInterface(scale: scale)
+                .environment(\.interfaceScale, scale)
                 .environmentObject(state)
+                .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .frame(
             minWidth: CGFloat(state.minimumContentWidth),
@@ -61,15 +66,15 @@ struct ContentView: View {
         .onDisappear { keyboardMonitor?.uninstall() }
     }
 
-    private var commanderInterface: some View {
+    private func commanderInterface(scale: CGFloat) -> some View {
         VStack(spacing: 0) {
             OpenWithBar()
             Divider()
             HSplitView {
                 PaneView(model: state.leftPane, side: .left)
-                    .frame(minWidth: CGFloat(state.leftPane.minimumListWidth))
+                    .frame(minWidth: CGFloat(state.leftPane.minimumListWidth) * scale)
                 PaneView(model: state.rightPane, side: .right)
-                    .frame(minWidth: CGFloat(state.rightPane.minimumListWidth))
+                    .frame(minWidth: CGFloat(state.rightPane.minimumListWidth) * scale)
             }
             FunctionKeyBar()
         }
@@ -77,11 +82,16 @@ struct ContentView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay(alignment: .topTrailing) {
             if let operation = state.operationCenter.activeOperations.last {
-                HStack(spacing: 8) {
-                    ProgressView(value: Double(operation.completed), total: Double(max(operation.total, 1))).frame(width: 70)
-                    Text("\(operation.kind.rawValue): \(operation.currentName)").font(.caption).lineLimit(1)
+                HStack(spacing: 8 * scale) {
+                    ProgressView(value: Double(operation.completed), total: Double(max(operation.total, 1)))
+                        .frame(width: 70 * scale)
+                    Text("\(operation.kind.rawValue): \(operation.currentName)")
+                        .font(.system(size: 10 * scale))
+                        .lineLimit(1)
                 }
-                .padding(9).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9)).padding(10)
+                .padding(9 * scale)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9 * scale))
+                .padding(10 * scale)
             }
         }
     }

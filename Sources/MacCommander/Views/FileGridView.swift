@@ -3,14 +3,15 @@ import SwiftUI
 struct FileGridView: View {
     @EnvironmentObject private var state: AppState
     @ObservedObject var model: PaneModel
+    @Environment(\.interfaceScale) private var scale
     let side: PaneSide
     @FocusState private var gridFocused: Bool
 
-    private let cellSpacing: CGFloat = 10
+    private var cellSpacing: CGFloat { 10 * scale }
 
-    private var iconSize: CGFloat { CGFloat(model.gridIconSize) }
-    private var minimumCellWidth: CGFloat { max(70, iconSize + 38) }
-    private var maximumCellWidth: CGFloat { minimumCellWidth + 38 }
+    private var iconSize: CGFloat { CGFloat(model.gridIconSize) * scale }
+    private var minimumCellWidth: CGFloat { max(70 * scale, iconSize + 38 * scale) }
+    private var maximumCellWidth: CGFloat { minimumCellWidth + 38 * scale }
 
     var body: some View {
         GeometryReader { geometry in
@@ -23,14 +24,14 @@ struct FileGridView: View {
                                 spacing: cellSpacing
                             )
                         ],
-                        spacing: 10
+                        spacing: cellSpacing
                     ) {
                         ForEach(model.displayItems) { item in
                             gridItem(item)
                                 .id(item.url)
                         }
                     }
-                    .padding(10)
+                    .padding(10 * scale)
                 }
                 .focusable(true)
                 .focused($gridFocused)
@@ -59,19 +60,19 @@ struct FileGridView: View {
     }
 
     private func gridItem(_ item: FileItem) -> some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 5 * scale) {
             FileIcon(
                 url: item.url,
                 size: iconSize,
                 showsThumbnail: !item.isDirectory && !item.isParentEntry
             )
             Text(item.name)
-                .font(.caption)
+                .font(.system(size: 10 * scale))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, minHeight: iconSize + 36)
-        .padding(6)
+        .frame(maxWidth: .infinity, minHeight: iconSize + 36 * scale)
+        .padding(6 * scale)
         .foregroundStyle(
             model.selection.contains(item.url) && state.activeSide == side
                 ? Color.white

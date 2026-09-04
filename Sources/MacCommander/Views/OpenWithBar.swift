@@ -3,13 +3,14 @@ import SwiftUI
 
 struct OpenWithBar: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.interfaceScale) private var scale
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 6 * scale) {
             if let item = state.primarySelection {
-                FileIcon(url: item.url, size: 17)
-                Text(item.name).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
-                Text(item.kind).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+                FileIcon(url: item.url, size: 17 * scale)
+                Text(item.name).font(.system(size: 11.5 * scale, weight: .semibold)).lineLimit(1)
+                Text(item.kind).font(.system(size: 10.5 * scale)).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 8)
 
                 if !item.isDirectory || item.isPackage {
@@ -35,12 +36,12 @@ struct OpenWithBar: View {
                     .controlTooltip("Choose another application to open this item")
                 }
             } else {
-                Image(systemName: "rectangle.split.2x1").font(.system(size: 14)).foregroundStyle(.tint)
-                Text("Select a file to see its applications").font(.system(size: 11)).foregroundStyle(.secondary)
+                Image(systemName: "rectangle.split.2x1").font(.system(size: 14 * scale)).foregroundStyle(.tint)
+                Text("Select a file to see its applications").font(.system(size: 11 * scale)).foregroundStyle(.secondary)
                 Spacer()
             }
 
-            Divider().frame(height: 18)
+            Divider().frame(height: 18 * scale)
             Button { state.searchPresented = true } label: {
                 compactAction("Search", shortcut: "⌘F", symbol: "magnifyingglass")
             }
@@ -49,8 +50,9 @@ struct OpenWithBar: View {
                 .controlTooltip("Find files", shortcut: "⌘F")
         }
         .controlSize(.small)
-        .padding(.horizontal, 7)
-        .frame(height: 32)
+        .font(.system(size: 11 * scale))
+        .padding(.horizontal, 7 * scale)
+        .frame(height: 32 * scale)
         .background(.bar)
     }
 
@@ -59,11 +61,11 @@ struct OpenWithBar: View {
     }
 
     private func compactAction(_ title: String, shortcut: String, symbol: String) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 3 * scale) {
             Image(systemName: symbol)
-            Text(title).font(.system(size: 10.5, weight: .medium))
+            Text(title).font(.system(size: 10.5 * scale, weight: .medium))
             Text(shortcut)
-                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .font(.system(size: 9.5 * scale, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
     }
