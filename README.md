@@ -11,6 +11,9 @@ A fast, native, keyboard-first dual-pane file manager for macOS. Chad Commander 
 - One persistent zsh session per pane. Opening or changing a pane synchronizes its shell; using `cd` in the shell synchronizes the pane.
 - Background copy/move/trash operations with non-destructive conflict naming (`report copy.txt`) and progress feedback.
 - Native Quick Look, contextual menus, multi-selection, light/dark appearance, and accessibility metadata.
+- Persistent favorite folders with name/path filtering and keyboard navigation.
+- Persistent tabs for both panes, including each pane's latest active folder.
+- Adjustable interface size with keyboard zoom controls.
 - Optional cached folder-size calculation for the active tab, with a global automatic mode that is off by default.
 - Optional default-folder handling with macOS consent and a one-click Finder restore in Settings.
 
@@ -74,9 +77,9 @@ The packaging script uses the first installed **Developer ID Application** ident
 CHAD_COMMANDER_SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" make app
 ```
 
-Because the app is downloaded from source and locally signed, macOS may require a Control-click → **Open** on first launch. The app is deliberately not sandboxed: a general-purpose file manager must be able to browse paths the user chooses. macOS still protects Desktop, Documents, Downloads, iCloud Drive, network volumes, and other sensitive locations. To approve access, open Chad Commander Settings (`Command-,`), choose **Open Full Disk Access Settings**, enable Chad Commander, and then choose **Relaunch Chad Commander**.
+Because the app is downloaded from source and locally signed, macOS may require a Control-click → **Open** on first launch. The app is deliberately not sandboxed: a general-purpose file manager must be able to browse paths the user chooses. macOS still protects Desktop, Documents, Downloads, iCloud Drive, network volumes, and other sensitive locations. Chad Commander asks for access as you open protected locations. You can also choose **Allow a Folder…** in Settings. Full Disk Access is optional and always requires manual approval in System Settings; after enabling it, choose **Relaunch Chad Commander**.
 
-For a durable default-folder association, move the app to `/Applications`, open Chad Commander Settings, and choose **Use Chad Commander** under Folder Handling. Finder continues to own the Desktop, Trash, and system Open/Save dialogs.
+For a durable default-folder association, move the app to `/Applications`, open Chad Commander Settings, choose **Use Chad Commander** under Folder Handling, and restart your Mac. This redirects apps and Terminal commands that ask macOS to open or reveal folders. Finder continues to own the Desktop, Trash, and system Open/Save dialogs.
 
 ## Updates and releases
 
@@ -106,6 +109,10 @@ See [RELEASE.md](RELEASE.md) for one-time setup, environment overrides, and veri
 | `F8` | Move selection to Trash |
 | `Command-F` | Search active location |
 | `Command-T` | New active-pane tab |
+| `Command-B` | Add or remove the active folder from favorites |
+| `Command-Shift-B` | Browse and filter favorite folders |
+| `Command-+` / `Command--` | Make the interface larger or smaller |
+| `Command-0` | Restore the default interface size |
 | `Command-Option-S` | Calculate folder sizes in the active tab |
 
 On Apple keyboards configured to use media controls, hold `fn` with an F-key or enable “Use F1, F2, etc. keys as standard function keys” in System Settings.

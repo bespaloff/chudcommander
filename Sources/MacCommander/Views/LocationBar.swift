@@ -49,11 +49,14 @@ struct LocationBar: View {
                     Image(systemName: "ruler")
                 }
             }
+            .foregroundStyle(model.folderSizesEnabledForActiveTab ? Color.blue : Color.primary)
+            .tint(.blue)
             .disabled(model.isLoading || model.isCalculatingFolderSizes)
             .controlTooltip("Calculate folder sizes for this tab", shortcut: "⌘⌥S")
             Button { model.showHidden.toggle(); model.reload() } label: {
                 Image(systemName: model.showHidden ? "eye" : "eye.slash")
             }
+            .foregroundStyle(model.showHidden ? Color.blue : Color.primary)
             .controlTooltip("\(model.showHidden ? "Hide" : "Show") hidden files", shortcut: "⌘⇧.")
             Picker("View", selection: $model.viewMode) {
                 ForEach(PaneViewMode.allCases, id: \.self) { mode in
@@ -66,6 +69,7 @@ struct LocationBar: View {
                 }
             }
             .pickerStyle(.segmented).labelsHidden().frame(width: 56)
+            .tint(.blue)
             .controlTooltip("Switch between list and icon views", shortcut: "⌘1 for list; ⌘2 for icons")
 
             if model.viewMode == .grid {

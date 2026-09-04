@@ -32,22 +32,42 @@ enum ShortcutGuidePresentation: String, Identifiable, Sendable {
 final class AppState: ObservableObject {
     private static let automaticFolderSizesKey = "automaticallyCalculateFolderSizes"
     private static let didShowOnboardingKey = "didShowOnboarding.v1"
+    private static let favoritesKey = "favoriteFolders.v1"
+    private static let workspaceSessionKey = "workspaceSession.v1"
+    private static let interfaceScaleKey = "interfaceScale.v1"
+    nonisolated static let minimumInterfaceScale = 0.7
+    nonisolated static let maximumInterfaceScale = 1.5
+    nonisolated static let interfaceScaleStep = 0.1
+    /// The smallest layout the commander interface renders without clipping.
+    /// It doubles as the window's minimum content size and as the budget the
+    /// zoom level is clamped against, so neither resizing nor zooming pushes
+    /// content out of the window.
+    nonisolated static let floorContentWidth = 640.0
+    nonisolated static let minimumContentHeight = 430.0
 
     let leftPane: PaneModel
     let rightPane: PaneModel
     let operationCenter = OperationCenter()
 
-    @Published var activeSide: PaneSide = .left
+    @Published var activeSide: PaneSide = .left {
+        didSet {
+            guard activeSide != oldValue else { return }
+            persistWorkspaceSession()
+        }
+    }
     @Published var searchPresented = false
     @Published var namingPrompt: NamingPrompt?
     @Published var pendingTrash: [URL] = []
     @Published var notice: AppNotice?
     @Published var quickLookURL: URL?
     @Published var shortcutGuidePresentation: ShortcutGuidePresentation?
+    @Published var favoritesPresentation: FavoritesPresentation?
+    @Published private(set) var favoriteFolders: [FavoriteFolder] = []
+    @Published private(set) var interfaceScale = 1.0
     @Published var automaticallyCalculateFolderSizes: Bool {
         didSet {
             guard automaticallyCalculateFolderSizes != oldValue else { return }
-            UserDefaults.standard.set(automaticallyCalculateFolderSizes, forKey: Self.automaticFolderSizesKey)
+            onboardingPreferences.set(automaticallyCalculateFolderSizes, forKey: Self.automaticFolderSizesKey)
             leftPane.setAutomaticallyCalculatesFolderSizes(automaticallyCalculateFolderSizes)
             rightPane.setAutomaticallyCalculatesFolderSizes(automaticallyCalculateFolderSizes)
         }
@@ -60,20 +80,41 @@ final class AppState: ObservableObject {
         self.onboardingPreferences = onboardingPreferences
         let home = FileManager.default.homeDirectoryForCurrentUser
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? home
-        let automaticFolderSizes = UserDefaults.standard.bool(forKey: Self.automaticFolderSizesKey)
+        let automaticFolderSizes = onboardingPreferences.bool(forKey: Self.automaticFolderSizesKey)
+        let workspaceSession = Self.decode(
+            WorkspaceSessionState.self,
+            forKey: Self.workspaceSessionKey,
+            from: onboardingPreferences
+        )
+        let savedFavorites = Self.decode(
+            [FavoriteFolder].self,
+            forKey: Self.favoritesKey,
+            from: onboardingPreferences
+        ) ?? []
+        let savedScale = onboardingPreferences.object(forKey: Self.interfaceScaleKey) as? Double ?? 1
         let folderSizeService = FolderSizeService()
+
+        activeSide = workspaceSession?.activeSide ?? .left
+        favoriteFolders = Self.uniqueFavorites(savedFavorites)
+        interfaceScale = Self.normalizedInterfaceScale(savedScale)
         automaticallyCalculateFolderSizes = automaticFolderSizes
         shortcutGuidePresentation = nil
+        favoritesPresentation = nil
         leftPane = PaneModel(
             location: home,
+            restoredSession: workspaceSession?.leftPane,
             folderSizeService: folderSizeService,
             automaticallyCalculatesFolderSizes: automaticFolderSizes
         )
         rightPane = PaneModel(
             location: downloads,
+            restoredSession: workspaceSession?.rightPane,
             folderSizeService: folderSizeService,
             automaticallyCalculatesFolderSizes: automaticFolderSizes
         )
+
+        leftPane.onSessionChange = { [weak self] in self?.persistWorkspaceSession() }
+        rightPane.onSessionChange = { [weak self] in self?.persistWorkspaceSession() }
 
         leftPane.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -94,6 +135,14 @@ final class AppState: ObservableObject {
     var inactivePane: PaneModel { activeSide == .left ? rightPane : leftPane }
     var activeSelection: [FileItem] { activePane.selectedItems }
     var primarySelection: FileItem? { activeSelection.first }
+    var isActiveFolderFavorite: Bool { favorite(for: activePane.location) != nil }
+    /// Both panes side by side, each wide enough to show its own columns.
+    var minimumContentWidth: Double {
+        max(leftPane.minimumListWidth + rightPane.minimumListWidth + 1, Self.floorContentWidth)
+    }
+    var interfaceScalePercentage: Int { Int((interfaceScale * 100).rounded()) }
+    var canIncreaseInterfaceScale: Bool { interfaceScale < Self.maximumInterfaceScale }
+    var canDecreaseInterfaceScale: Bool { interfaceScale > Self.minimumInterfaceScale }
 
     func start() {
         leftPane.reload()
@@ -109,6 +158,41 @@ final class AppState: ObservableObject {
 
     func showShortcutGuide() {
         shortcutGuidePresentation = .reference
+    }
+
+    func showFavorites() {
+        favoritesPresentation = .browser
+    }
+
+    func toggleFavoriteForActiveFolder() {
+        let folder = FavoriteFolder(url: activePane.location)
+        if let index = favoriteFolders.firstIndex(where: { $0.id == folder.id }) {
+            favoriteFolders.remove(at: index)
+        } else {
+            favoriteFolders.insert(folder, at: 0)
+        }
+        persistFavorites()
+    }
+
+    func removeFavorite(_ favorite: FavoriteFolder) {
+        favoriteFolders.removeAll { $0.id == favorite.id }
+        persistFavorites()
+    }
+
+    func openFavorite(_ favorite: FavoriteFolder) {
+        activePane.navigate(to: favorite.url)
+    }
+
+    func increaseInterfaceScale() {
+        setInterfaceScale(interfaceScale + Self.interfaceScaleStep)
+    }
+
+    func decreaseInterfaceScale() {
+        setInterfaceScale(interfaceScale - Self.interfaceScaleStep)
+    }
+
+    func resetInterfaceScale() {
+        setInterfaceScale(1)
     }
 
     func dismissShortcutGuide() {
@@ -271,6 +355,56 @@ final class AppState: ObservableObject {
     }
 
     func pane(_ side: PaneSide) -> PaneModel { side == .left ? leftPane : rightPane }
+
+    private func favorite(for url: URL) -> FavoriteFolder? {
+        let path = url.standardizedFileURL.path
+        return favoriteFolders.first { $0.path == path }
+    }
+
+    private func setInterfaceScale(_ scale: Double) {
+        let normalized = Self.normalizedInterfaceScale(scale)
+        guard normalized != interfaceScale else { return }
+        interfaceScale = normalized
+        onboardingPreferences.set(normalized, forKey: Self.interfaceScaleKey)
+    }
+
+    private func persistFavorites() {
+        encode(favoriteFolders, forKey: Self.favoritesKey)
+    }
+
+    private func persistWorkspaceSession() {
+        guard leftPane.onSessionChange != nil, rightPane.onSessionChange != nil else { return }
+        let session = WorkspaceSessionState(
+            leftPane: leftPane.sessionState,
+            rightPane: rightPane.sessionState,
+            activeSide: activeSide
+        )
+        encode(session, forKey: Self.workspaceSessionKey)
+    }
+
+    private func encode<T: Encodable>(_ value: T, forKey key: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        onboardingPreferences.set(data, forKey: key)
+    }
+
+    private static func decode<T: Decodable>(
+        _ type: T.Type,
+        forKey key: String,
+        from preferences: UserDefaults
+    ) -> T? {
+        guard let data = preferences.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private static func uniqueFavorites(_ favorites: [FavoriteFolder]) -> [FavoriteFolder] {
+        var paths = Set<String>()
+        return favorites.filter { paths.insert($0.path).inserted }
+    }
+
+    private static func normalizedInterfaceScale(_ scale: Double) -> Double {
+        let stepped = (scale / interfaceScaleStep).rounded() * interfaceScaleStep
+        return min(max(stepped, minimumInterfaceScale), maximumInterfaceScale)
+    }
 
     private func markOnboardingAsShown() {
         onboardingPreferences.set(true, forKey: Self.didShowOnboardingKey)

@@ -16,6 +16,21 @@ enum PrivacyAccessService {
         NSWorkspace.shared.open(fullDiskAccessSettingsURL)
     }
 
+    static func requestFolderAccess(startingAt folder: URL? = nil) async -> URL? {
+        let panel = NSOpenPanel()
+        panel.title = "Allow Folder Access"
+        panel.message = "Choose a folder Chad Commander may browse and manage. macOS remembers your choice."
+        panel.prompt = "Allow Access"
+        panel.directoryURL = folder
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+
+        let response = await panel.begin()
+        return response == .OK ? panel.url : nil
+    }
+
     static func relaunch() async throws {
         guard canRelaunch else {
             throw RelaunchError.notPackagedApplication

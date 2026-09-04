@@ -16,6 +16,9 @@ struct ShortcutGuideView: View {
         ShortcutGuideItem(keys: ["F8"], action: "Move to Trash"),
         ShortcutGuideItem(keys: ["⌘F"], action: "Find files"),
         ShortcutGuideItem(keys: ["⌘T"], action: "New tab"),
+        ShortcutGuideItem(keys: ["⌘B"], action: "Add or remove favorite"),
+        ShortcutGuideItem(keys: ["⇧⌘B"], action: "Open favorite folders"),
+        ShortcutGuideItem(keys: ["⌘+", "⌘−"], action: "Resize the interface"),
         ShortcutGuideItem(keys: ["⌘⌥S"], action: "Calculate folder sizes"),
         ShortcutGuideItem(keys: ["⌥F4"], action: "Toggle terminal")
     ]

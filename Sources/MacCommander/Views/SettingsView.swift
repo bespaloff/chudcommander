@@ -5,12 +5,34 @@ struct SettingsView: View {
     @EnvironmentObject private var state: AppState
     @StateObject private var folderAssociation = FolderAssociationService()
     @State private var isRelaunching = false
+    @State private var isRequestingFolderAccess = false
     @State private var privacyMessage: String?
 
     var body: some View {
         Form {
+            Section("Appearance") {
+                LabeledContent("Interface size") {
+                    Text("\(state.interfaceScalePercentage)%")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    Button("Smaller") { state.decreaseInterfaceScale() }
+                        .disabled(!state.canDecreaseInterfaceScale)
+                        .controlTooltip("Make the main interface smaller", shortcut: "⌘−")
+                    Button("Actual Size") { state.resetInterfaceScale() }
+                        .disabled(state.interfaceScale == 1)
+                        .controlTooltip("Reset the main interface to its default size", shortcut: "⌘0")
+                    Button("Larger") { state.increaseInterfaceScale() }
+                        .disabled(!state.canIncreaseInterfaceScale)
+                        .controlTooltip("Make the main interface larger", shortcut: "⌘+")
+                }
+            }
+
             Section("File Listings") {
                 Toggle("Calculate folder sizes automatically", isOn: $state.automaticallyCalculateFolderSizes)
+                    .tint(.blue)
                     .controlTooltip("Calculate folder sizes automatically when a tab opens")
                 Text("Off by default. When enabled, folder sizes are calculated in the background for each opened tab. Results are cached briefly for faster revisits.")
                     .font(.caption)
@@ -27,7 +49,11 @@ struct SettingsView: View {
                     Button("Use Chad Commander") {
                         folderAssociation.makeChadCommanderDefault()
                     }
-                    .disabled(folderAssociation.isChadCommanderDefault || folderAssociation.isWorking)
+                    .disabled(
+                        folderAssociation.isChadCommanderDefault
+                            || folderAssociation.isWorking
+                            || !folderAssociation.canMakeChadCommanderDefault
+                    )
                     .controlTooltip("Use Chad Commander when macOS opens folders")
 
                     Button("Restore Finder") {
@@ -41,7 +67,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Text("This affects apps that ask macOS to open or reveal a folder. Finder still owns the Desktop, Trash, and system Open/Save dialogs.")
+                Text("Restart your Mac after changing this setting. It affects apps and Terminal commands that ask macOS to open or reveal a folder. Finder still owns the Desktop, Trash, and system Open/Save dialogs.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -60,16 +86,22 @@ struct SettingsView: View {
             }
 
             Section("Privacy Access") {
-                Text("Full Disk Access lets Chad Commander browse protected locations—including Desktop, Documents, Downloads, iCloud Drive, external disks, and other users’ readable files—without asking for each location separately.")
+                Text("macOS asks when Chad Commander first opens protected locations such as Desktop, Documents, Downloads, network volumes, or removable disks. You can also explicitly allow a folder here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("macOS requires one manual approval: open System Settings, add or enable Chad Commander under Full Disk Access, then return here and relaunch.")
+                Text("Full Disk Access is optional. It avoids separate prompts across the Mac, but Apple requires you to add or enable the app manually in System Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
-                    Button("Open Full Disk Access Settings") {
+                    Button("Allow a Folder…") {
+                        requestFolderAccess()
+                    }
+                    .disabled(isRequestingFolderAccess)
+                    .controlTooltip("Choose a folder Chad Commander may access")
+
+                    Button("Full Disk Access Settings") {
                         if !PrivacyAccessService.openFullDiskAccessSettings() {
                             privacyMessage = "Could not open Full Disk Access settings. Open System Settings → Privacy & Security → Full Disk Access."
                         }
@@ -82,7 +114,7 @@ struct SettingsView: View {
                     .disabled(isRelaunching)
                     .controlTooltip("Quit and reopen Chad Commander")
 
-                    if isRelaunching {
+                    if isRelaunching || isRequestingFolderAccess {
                         ProgressView().controlSize(.small)
                     }
                 }
@@ -96,8 +128,22 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 440)
+        .frame(width: 560, height: 560)
         .task { folderAssociation.refresh() }
+    }
+
+    private func requestFolderAccess() {
+        isRequestingFolderAccess = true
+        privacyMessage = nil
+        Task { @MainActor in
+            if let folder = await PrivacyAccessService.requestFolderAccess(
+                startingAt: FileManager.default.homeDirectoryForCurrentUser
+            ) {
+                state.activePane.navigate(to: folder)
+                privacyMessage = "Access allowed for \(folder.path)."
+            }
+            isRequestingFolderAccess = false
+        }
     }
 
     private func relaunch() {

@@ -100,7 +100,11 @@ final class FileDragSourceView: NSView, NSDraggingSource {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        forwardToUnderlyingView(event) { $0.scrollWheel(with: event) }
+        guard let scrollView = enclosingScrollView else {
+            super.scrollWheel(with: event)
+            return
+        }
+        scrollView.scrollWheel(with: event)
     }
 
     func draggingSession(

@@ -198,6 +198,19 @@ enum FileSort: String, CaseIterable, Sendable {
     case iCloudStatus = "iCloud Status"
 }
 
+/// Layout constants shared by the list view and the sizing rules that keep
+/// the interface inside its window.
+enum FileListMetrics {
+    static let rowInset: CGFloat = 5
+    static let columnSpacing: CGFloat = 5
+    static let columnsMenuWidth: CGFloat = 18
+    static let iconWidth: CGFloat = 14
+    /// How much room a filename needs before the list is considered clipped.
+    static let minimumNameWidth: CGFloat = 96
+    /// Ceiling on how wide widened columns may push the window's minimum size.
+    static let maximumPaneMinimumWidth: CGFloat = 560
+}
+
 enum FileListColumn: String, CaseIterable, Hashable, Identifiable, Sendable {
     case sharedBy = "Shared By"
     case modified = "Date Modified"
@@ -214,6 +227,29 @@ enum FileListColumn: String, CaseIterable, Hashable, Identifiable, Sendable {
     var id: Self { self }
 
     static let defaults: Set<Self> = [.kind, .size, .modified]
+
+    var defaultWidth: Double {
+        switch self {
+        case .size, .version: 78
+        case .kind: 110
+        case .sharedBy, .iCloudStatus: 105
+        case .comments: 150
+        case .tags: 120
+        case .modified, .created, .lastOpened, .added: 130
+        }
+    }
+
+    var minimumWidth: Double {
+        switch self {
+        case .size: 52
+        case .version: 60
+        case .kind: 72
+        case .sharedBy, .iCloudStatus, .comments, .tags: 80
+        case .modified, .created, .lastOpened, .added: 96
+        }
+    }
+
+    var maximumWidth: Double { 420 }
 
     var sort: FileSort {
         switch self {

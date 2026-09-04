@@ -7,22 +7,26 @@ struct ContentView: View {
     @State private var keyboardMonitor: KeyboardEventMonitor?
 
     var body: some View {
-        VStack(spacing: 0) {
-            OpenWithBar()
-            Divider()
-            HSplitView {
-                PaneView(model: state.leftPane, side: .left)
-                    .frame(minWidth: 360)
-                PaneView(model: state.rightPane, side: .right)
-                    .frame(minWidth: 360)
-            }
-            FunctionKeyBar()
+        InterfaceScaleContainer(
+            scale: CGFloat(state.interfaceScale),
+            minimumContentSize: CGSize(
+                width: state.minimumContentWidth,
+                height: AppState.minimumContentHeight
+            )
+        ) {
+            commanderInterface
+                .environmentObject(state)
         }
-        .controlSize(.small)
-        .frame(minWidth: 780, minHeight: 480)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(
+            minWidth: CGFloat(state.minimumContentWidth),
+            minHeight: CGFloat(AppState.minimumContentHeight)
+        )
         .sheet(item: $state.shortcutGuidePresentation, onDismiss: state.shortcutGuideDidDismiss) { presentation in
             ShortcutGuideView(presentation: presentation, onDone: state.dismissShortcutGuide)
+        }
+        .sheet(item: $state.favoritesPresentation) { _ in
+            FavoritesOverlayView()
+                .environmentObject(state)
         }
         .sheet(isPresented: $state.searchPresented) { SearchSheet().environmentObject(state) }
         .sheet(item: $state.namingPrompt) { prompt in
@@ -42,15 +46,6 @@ struct ContentView: View {
                 .controlTooltip("Cancel without moving anything", shortcut: "Esc")
         }
         .quickLookPreview($state.quickLookURL)
-        .overlay(alignment: .topTrailing) {
-            if let operation = state.operationCenter.activeOperations.last {
-                HStack(spacing: 8) {
-                    ProgressView(value: Double(operation.completed), total: Double(max(operation.total, 1))).frame(width: 70)
-                    Text("\(operation.kind.rawValue): \(operation.currentName)").font(.caption).lineLimit(1)
-                }
-                .padding(9).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9)).padding(10)
-            }
-        }
         .task {
             state.start()
             await Task.yield()
@@ -64,5 +59,30 @@ struct ContentView: View {
             keyboardMonitor = monitor
         }
         .onDisappear { keyboardMonitor?.uninstall() }
+    }
+
+    private var commanderInterface: some View {
+        VStack(spacing: 0) {
+            OpenWithBar()
+            Divider()
+            HSplitView {
+                PaneView(model: state.leftPane, side: .left)
+                    .frame(minWidth: CGFloat(state.leftPane.minimumListWidth))
+                PaneView(model: state.rightPane, side: .right)
+                    .frame(minWidth: CGFloat(state.rightPane.minimumListWidth))
+            }
+            FunctionKeyBar()
+        }
+        .controlSize(.small)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .topTrailing) {
+            if let operation = state.operationCenter.activeOperations.last {
+                HStack(spacing: 8) {
+                    ProgressView(value: Double(operation.completed), total: Double(max(operation.total, 1))).frame(width: 70)
+                    Text("\(operation.kind.rawValue): \(operation.currentName)").font(.caption).lineLimit(1)
+                }
+                .padding(9).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9)).padding(10)
+            }
+        }
     }
 }

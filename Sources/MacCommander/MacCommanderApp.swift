@@ -23,7 +23,30 @@ struct ChadCommanderApp: App {
                     state.showShortcutGuide()
                 }
                 .keyboardShortcut("/", modifiers: .command)
-                .controlTooltip("Show the keyboard shortcut guide", shortcut: "⌘/")
+                    .controlTooltip("Show the keyboard shortcut guide", shortcut: "⌘/")
+            }
+            CommandGroup(after: .toolbar) {
+                Divider()
+                Button("Zoom In") {
+                    state.increaseInterfaceScale()
+                }
+                .keyboardShortcut("+", modifiers: .command)
+                .disabled(!state.canIncreaseInterfaceScale)
+                .controlTooltip("Make the interface larger", shortcut: "⌘+")
+
+                Button("Zoom Out") {
+                    state.decreaseInterfaceScale()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(!state.canDecreaseInterfaceScale)
+                .controlTooltip("Make the interface smaller", shortcut: "⌘−")
+
+                Button("Actual Size") {
+                    state.resetInterfaceScale()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(state.interfaceScale == 1)
+                .controlTooltip("Reset the interface to its default size", shortcut: "⌘0")
             }
             CommandGroup(replacing: .newItem) {
                 Button("New Folder…") { state.requestNewFolder() }
@@ -38,6 +61,22 @@ struct ChadCommanderApp: App {
                     .controlTooltip("Close the active tab", shortcut: "⌘W")
             }
             CommandMenu("Commander") {
+                Button(state.isActiveFolderFavorite ? "Remove Active Folder from Favorites" : "Add Active Folder to Favorites") {
+                    state.toggleFavoriteForActiveFolder()
+                }
+                .keyboardShortcut("b", modifiers: .command)
+                .controlTooltip(
+                    state.isActiveFolderFavorite
+                        ? "Remove the active folder from favorites"
+                        : "Add the active folder to favorites",
+                    shortcut: "⌘B"
+                )
+                Button("Open Favorite Folders…") {
+                    state.showFavorites()
+                }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .controlTooltip("Browse and filter favorite folders", shortcut: "⇧⌘B")
+                Divider()
                 Button("Quick Look  F3") { state.quickLookSelection() }
                     .keyboardShortcut("y", modifiers: .command)
                     .controlTooltip("Preview the selected item", shortcut: "F3, Space, or ⌘Y")

@@ -5,25 +5,24 @@ Sparkle polls a static HTTPS appcast, verifies a signed ZIP, then atomically ins
 ## Normal release flow
 
 ```sh
-./Scripts/build-dmg.sh
-open "dist/Chad-Commander-<version>.dmg"
-# Install and smoke-test it, then:
-./Scripts/deploy-release.sh
+make release
 ```
 
-`build-dmg.sh` increments the minor version and build number by default. Set `AUTO_BUMP_MINOR=0` when rebuilding the same version.
+This verifies saved credentials, runs the tests, increments the minor version and build number, signs and notarizes the app and DMG, publishes the Sparkle update, and verifies the public download. It does not prompt for passwords. Set `AUTO_BUMP_MINOR=0` when rebuilding the same version.
 
-The deploy script publishes the DMG, update ZIP, and appcast to a maintainer-configured SSH destination. Set `REMOTE_HOST`, `REMOTE_USER`, and `REMOTE_LANDING` for every real deployment. `PUBLIC_BASE_URL` defaults to `https://chadcommander.org` and can also be overridden.
+The deploy script publishes the DMG, update ZIP, and appcast to the SSH destination saved by `make setup-release`. `REMOTE_HOST`, `REMOTE_USER`, `REMOTE_LANDING`, and `PUBLIC_BASE_URL` can still override those settings for a single run.
 
-## One-time setup
+## One-time credential setup
 
-Install a Developer ID Application certificate and store notarization credentials in the `notarytool` keychain profile:
+Install a Developer ID Application certificate, then run:
 
 ```sh
-xcrun notarytool store-credentials notarytool \
-  --apple-id YOUR_APPLE_ID \
-  --team-id YOUR_TEAM_ID
+make setup-release
 ```
+
+The setup asks for the Apple ID and SSH destination. Apple's `notarytool` then asks once for the app-specific password and stores it in the macOS login Keychain under the `notarytool` profile. The password is never placed in a config file, environment variable, command argument, or repository. The non-secret destination and Keychain references are saved with mode `600` at `~/.config/chad-commander/release.env`.
+
+SSH uploads require public-key authentication and deliberately have no password fallback. Once setup succeeds, `make release` is unattended. Run `make setup-release` again to replace missing or expired notarization credentials, and use `./Scripts/setup-release.sh --check` for a read-only preflight.
 
 The app's Sparkle public EdDSA key is committed as `SUPublicEDKey`; its private half must remain in the maintainer's login Keychain and must never be committed. Sparkle's `generate_keys` utility creates or retrieves the signing key. Before releasing, verify that `generate_keys -p` matches `SUPublicEDKey` in `Info.plist`.
 
@@ -51,5 +50,7 @@ REMOTE_LANDING=/srv/www/chadcommander \
 PUBLIC_BASE_URL=https://downloads.example.com \
 ./Scripts/deploy-release.sh
 ```
+
+Explicit environment values override the saved machine-local configuration.
 
 The deploy step refuses an unstapled build, creates a content-addressed ZIP, signs and locally verifies it, updates `appcast.xml`, uploads the release artifacts, then downloads the public ZIP and verifies its checksum and Sparkle signature.

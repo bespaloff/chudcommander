@@ -81,6 +81,7 @@ struct SearchSheet: View {
                             .controlTooltip("Include hidden files and folders")
                     }
                     .toggleStyle(.checkbox)
+                    .tint(.blue)
                     Spacer()
                 }
                 GridRow {
@@ -92,6 +93,7 @@ struct SearchSheet: View {
                             .controlTooltip("Interpret the name and content fields as regular expressions")
                     }
                     .toggleStyle(.checkbox)
+                    .tint(.blue)
                     Spacer()
                 }
             }

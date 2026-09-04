@@ -23,6 +23,34 @@ struct UpdateConfigurationTests {
         #expect(Data(base64Encoded: publicKey ?? "")?.count == 32)
     }
 
+    @Test("Protected folder access has user-facing explanations")
+    func protectedFolderUsageDescriptions() throws {
+        let plist = try infoPlist()
+        let keys = [
+            "NSDesktopFolderUsageDescription",
+            "NSDocumentsFolderUsageDescription",
+            "NSDownloadsFolderUsageDescription",
+            "NSNetworkVolumesUsageDescription",
+            "NSRemovableVolumesUsageDescription"
+        ]
+
+        for key in keys {
+            #expect((plist[key] as? String)?.isEmpty == false)
+        }
+    }
+
+    @Test("The app registers as a folder editor")
+    func folderDocumentTypeConfiguration() throws {
+        let plist = try infoPlist()
+        let documentTypes = try #require(plist["CFBundleDocumentTypes"] as? [[String: Any]])
+        let folderType = try #require(documentTypes.first { documentType in
+            (documentType["LSItemContentTypes"] as? [String])?.contains("public.folder") == true
+        })
+
+        #expect(folderType["CFBundleTypeRole"] as? String == "Editor")
+        #expect(folderType["LSHandlerRank"] as? String == "Alternate")
+    }
+
     private func infoPlist() throws -> [String: Any] {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let plistURL = testsDirectory

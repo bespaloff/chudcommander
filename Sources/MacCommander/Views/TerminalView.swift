@@ -30,7 +30,7 @@ struct TerminalView: View {
 
             TerminalSurface(session: session)
         }
-        .frame(minHeight: 120, idealHeight: 165)
+        .frame(minHeight: CGFloat(PaneModel.minimumTerminalHeight))
     }
 }
 

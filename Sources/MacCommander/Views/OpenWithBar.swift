@@ -70,8 +70,26 @@ struct OpenWithBar: View {
 }
 
 private struct AlternativeAppIcon: View {
+    // Bundle.module traps when a hand-packaged app keeps SwiftPM bundles in
+    // the signed Contents/Resources directory, so probe both layouts safely.
+    private static let iconURL: URL? = {
+        if let url = Bundle.main.url(forResource: "alternative-app", withExtension: "svg") {
+            return url
+        }
+
+        let resourceBundleName = "MacCommander_MacCommander.bundle"
+        let bundleLocations = [
+            Bundle.main.bundleURL.appendingPathComponent(resourceBundleName),
+            Bundle.main.resourceURL?.appendingPathComponent(resourceBundleName),
+        ].compactMap { $0 }
+
+        return bundleLocations.lazy.compactMap { Bundle(url: $0) }.compactMap {
+            $0.url(forResource: "alternative-app", withExtension: "svg")
+        }.first
+    }()
+
     var body: some View {
-        if let url = Bundle.module.url(forResource: "alternative-app", withExtension: "svg"),
+        if let url = Self.iconURL,
            let image = NSImage(contentsOf: url) {
             Image(nsImage: template(image))
                 .resizable()

@@ -13,6 +13,9 @@ final class PaneModel: ObservableObject {
     @Published var viewMode: PaneViewMode = .list
     @Published var gridIconSize = 54.0
     @Published private(set) var visibleListColumns = FileListColumn.defaults
+    @Published private(set) var listColumnWidths = Dictionary(
+        uniqueKeysWithValues: FileListColumn.allCases.map { ($0, $0.defaultWidth) }
+    )
     @Published private(set) var filterQuery = ""
     @Published private(set) var gridColumnCount = 1
     @Published var showHidden = false
@@ -22,21 +25,27 @@ final class PaneModel: ObservableObject {
     @Published private(set) var folderSizes: [URL: FolderSizeState] = [:]
     @Published private(set) var isCalculatingFolderSizes = false
     @Published var terminalVisible = false
+    @Published private(set) var terminalHeight = PaneModel.defaultTerminalHeight
     let terminal = TerminalSession()
     private let folderSizeService: FolderSizeService
-    private var automaticallyCalculatesFolderSizes: Bool
-    private var folderSizeEnabledTabs: Set<UUID> = []
+    @Published private var automaticallyCalculatesFolderSizes: Bool
+    @Published private var folderSizeEnabledTabs: Set<UUID> = []
     private var folderSizeTask: Task<Void, Never>?
     private var folderSizeRequestID: UUID?
+    var onSessionChange: (() -> Void)?
 
     init(
         location: URL,
+        restoredSession: PaneSessionState? = nil,
         folderSizeService: FolderSizeService = FolderSizeService(),
         automaticallyCalculatesFolderSizes: Bool = false
     ) {
-        let tab = PaneTab(location: location)
-        tabs = [tab]
-        activeTabID = tab.id
+        let restoredLocations = restoredSession?.folderURLs ?? []
+        let locations = restoredLocations.isEmpty ? [location.standardizedFileURL] : restoredLocations
+        let restoredTabs = locations.map { PaneTab(location: $0) }
+        let restoredIndex = min(max(restoredSession?.activeTabIndex ?? 0, 0), restoredTabs.count - 1)
+        tabs = restoredTabs
+        activeTabID = restoredTabs[restoredIndex].id
         self.folderSizeService = folderSizeService
         self.automaticallyCalculatesFolderSizes = automaticallyCalculatesFolderSizes
     }
@@ -48,6 +57,9 @@ final class PaneModel: ObservableObject {
     var location: URL { activeTab.location }
     var canGoBack: Bool { activeTab.historyIndex > 0 }
     var canGoForward: Bool { activeTab.historyIndex < activeTab.history.count - 1 }
+    var folderSizesEnabledForActiveTab: Bool {
+        automaticallyCalculatesFolderSizes || folderSizeEnabledTabs.contains(activeTabID)
+    }
 
     var sortedItems: [FileItem] {
         FileSystemService.sorted(items, by: sort, ascending: ascending, folderSizes: folderSizes)
@@ -70,6 +82,13 @@ final class PaneModel: ObservableObject {
 
     var selectedSize: Int64 {
         selectedItems.reduce(0) { $0 + ($1.isDirectory ? 0 : $1.size) }
+    }
+
+    var sessionState: PaneSessionState {
+        PaneSessionState(
+            folderPaths: tabs.map { $0.location.standardizedFileURL.path },
+            activeTabIndex: activeIndex
+        )
     }
 
     private var activeIndex: Int {
@@ -235,6 +254,7 @@ final class PaneModel: ObservableObject {
         tab.titleOverride = nil
         tab.virtualItems = nil
         tabs[activeIndex] = tab
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -250,6 +270,7 @@ final class PaneModel: ObservableObject {
         tab.virtualItems = nil
         tab.titleOverride = nil
         tabs[activeIndex] = tab
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -265,6 +286,7 @@ final class PaneModel: ObservableObject {
         tab.virtualItems = nil
         tab.titleOverride = nil
         tabs[activeIndex] = tab
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -282,6 +304,7 @@ final class PaneModel: ObservableObject {
         let tab = PaneTab(location: location ?? self.location)
         tabs.append(tab)
         activeTabID = tab.id
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -293,6 +316,7 @@ final class PaneModel: ObservableObject {
         let tab = PaneTab(location: root, titleOverride: title, virtualItems: results.map(\.item))
         tabs.append(tab)
         activeTabID = tab.id
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -302,6 +326,7 @@ final class PaneModel: ObservableObject {
     func selectTab(_ id: UUID) {
         guard tabs.contains(where: { $0.id == id }) else { return }
         activeTabID = id
+        onSessionChange?()
         clearFilter()
         selection = []
         cursorURL = nil
@@ -322,6 +347,7 @@ final class PaneModel: ObservableObject {
             reload()
             if terminalVisible { terminal.changeDirectory(to: location) }
         }
+        onSessionChange?()
     }
 
     func toggleTerminal() {
@@ -370,6 +396,38 @@ final class PaneModel: ObservableObject {
         setFilterQuery("")
     }
 
+    nonisolated static let defaultTerminalHeight = 165.0
+    nonisolated static let minimumTerminalHeight = 90.0
+    nonisolated static let maximumTerminalHeight = 900.0
+    /// Chrome the pane keeps above the terminal (tabs, location bar, a usable
+    /// sliver of the file list) plus the status bar below it.
+    nonisolated static let reservedPaneHeight = 170.0
+
+    /// The tallest the terminal may grow inside a pane of the given height.
+    nonisolated static func maximumTerminalHeight(forPaneHeight paneHeight: Double) -> Double {
+        guard paneHeight > 0 else { return maximumTerminalHeight }
+        return min(
+            maximumTerminalHeight,
+            max(paneHeight - reservedPaneHeight, minimumTerminalHeight)
+        )
+    }
+
+    /// The stored height, trimmed to what the pane can currently show.
+    func terminalHeight(forPaneHeight paneHeight: Double) -> Double {
+        min(terminalHeight, Self.maximumTerminalHeight(forPaneHeight: paneHeight))
+    }
+
+    func setTerminalHeight(_ height: Double, maximum: Double = PaneModel.maximumTerminalHeight) {
+        let upperBound = max(min(maximum, Self.maximumTerminalHeight), Self.minimumTerminalHeight)
+        let clamped = min(max(height, Self.minimumTerminalHeight), upperBound)
+        guard clamped != terminalHeight else { return }
+        terminalHeight = clamped
+    }
+
+    func resetTerminalHeight() {
+        setTerminalHeight(Self.defaultTerminalHeight)
+    }
+
     func setListColumn(_ column: FileListColumn, isVisible: Bool) {
         if isVisible {
             visibleListColumns.insert(column)
@@ -380,6 +438,39 @@ final class PaneModel: ObservableObject {
                 ascending = true
             }
         }
+    }
+
+    /// The narrowest this pane can be drawn while every visible list column,
+    /// the columns menu, and a readable filename still fit.
+    var minimumListWidth: Double {
+        let metrics = FileListMetrics.self
+        let columns = FileListColumn.allCases.filter(visibleListColumns.contains)
+        let columnsWidth = columns.reduce(0.0) {
+            $0 + listColumnWidth(for: $1) + Double(metrics.columnSpacing)
+        }
+        let required = Double(metrics.rowInset)
+            + Double(metrics.iconWidth)
+            + Double(metrics.columnSpacing)
+            + Double(metrics.minimumNameWidth)
+            + columnsWidth
+            + Double(metrics.columnSpacing)
+            + Double(metrics.columnsMenuWidth)
+            + Double(metrics.rowInset)
+        return min(required, Double(metrics.maximumPaneMinimumWidth))
+    }
+
+    func listColumnWidth(for column: FileListColumn) -> Double {
+        listColumnWidths[column] ?? column.defaultWidth
+    }
+
+    func setListColumnWidth(_ column: FileListColumn, to width: Double) {
+        let clampedWidth = min(max(width, column.minimumWidth), column.maximumWidth)
+        guard listColumnWidths[column] != clampedWidth else { return }
+        listColumnWidths[column] = clampedWidth
+    }
+
+    func resetListColumnWidth(_ column: FileListColumn) {
+        setListColumnWidth(column, to: column.defaultWidth)
     }
 
     func updateGridColumnCount(_ count: Int) {

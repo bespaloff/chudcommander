@@ -113,6 +113,65 @@ struct PaneCursorTests {
         #expect(FileListColumn.defaults == [.kind, .size, .modified])
     }
 
+    @Test("List column widths are adjustable, bounded, and resettable")
+    func listColumnWidths() {
+        let pane = PaneModel(location: FileManager.default.temporaryDirectory)
+
+        #expect(pane.listColumnWidth(for: .size) == FileListColumn.size.defaultWidth)
+
+        pane.setListColumnWidth(.size, to: 144)
+        #expect(pane.listColumnWidth(for: .size) == 144)
+
+        pane.setListColumnWidth(.size, to: 1)
+        #expect(pane.listColumnWidth(for: .size) == FileListColumn.size.minimumWidth)
+
+        pane.setListColumnWidth(.size, to: 1_000)
+        #expect(pane.listColumnWidth(for: .size) == FileListColumn.size.maximumWidth)
+
+        pane.resetListColumnWidth(.size)
+        #expect(pane.listColumnWidth(for: .size) == FileListColumn.size.defaultWidth)
+    }
+
+    @Test("Terminal height is adjustable, bounded, and resettable")
+    func terminalHeight() {
+        let pane = PaneModel(location: FileManager.default.temporaryDirectory)
+
+        #expect(pane.terminalHeight == PaneModel.defaultTerminalHeight)
+
+        pane.setTerminalHeight(320)
+        #expect(pane.terminalHeight == 320)
+
+        pane.setTerminalHeight(1)
+        #expect(pane.terminalHeight == PaneModel.minimumTerminalHeight)
+
+        pane.setTerminalHeight(10_000)
+        #expect(pane.terminalHeight == PaneModel.maximumTerminalHeight)
+
+        // A drag can never push the terminal past what the pane can show.
+        pane.setTerminalHeight(10_000, maximum: 240)
+        #expect(pane.terminalHeight == 240)
+
+        // A short pane trims the stored height without forgetting it.
+        pane.setTerminalHeight(400)
+        #expect(pane.terminalHeight(forPaneHeight: 500) == 330)
+        #expect(pane.terminalHeight(forPaneHeight: 4_000) == 400)
+        #expect(pane.terminalHeight(forPaneHeight: 100) == PaneModel.minimumTerminalHeight)
+        #expect(pane.terminalHeight == 400)
+
+        pane.resetTerminalHeight()
+        #expect(pane.terminalHeight == PaneModel.defaultTerminalHeight)
+    }
+
+    @Test("Folder size calculation exposes its active toolbar state")
+    func folderSizeToolbarState() {
+        let pane = PaneModel(location: FileManager.default.temporaryDirectory)
+        #expect(!pane.folderSizesEnabledForActiveTab)
+
+        pane.calculateFolderSizesForTab()
+
+        #expect(pane.folderSizesEnabledForActiveTab)
+    }
+
     @Test("Permission errors are identified without matching localized text")
     func permissionErrors() {
         let cocoa = NSError(domain: NSCocoaErrorDomain, code: CocoaError.fileReadNoPermission.rawValue)

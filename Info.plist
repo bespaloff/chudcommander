@@ -2,32 +2,64 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key><string>en</string>
-    <key>CFBundleExecutable</key><string>MacCommander</string>
-    <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundleIconName</key><string>AppIcon</string>
-    <key>CFBundleIdentifier</key><string>org.chadcommander.ChadCommander</string>
-    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>CFBundleName</key><string>Chad Commander</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleDocumentTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleTypeName</key><string>Folder</string>
-            <key>CFBundleTypeRole</key><string>Viewer</string>
-            <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key>
-            <array><string>public.folder</string></array>
-        </dict>
-    </array>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>CFBundleVersion</key><string>3</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <key>NSHighResolutionCapable</key><true/>
-    <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
-    <key>SUEnableAutomaticChecks</key><true/>
-    <key>SUFeedURL</key><string>https://chadcommander.org/appcast.xml</string>
-    <key>SUPublicEDKey</key><string>Tt8rHNHjM64WzdHoQwf56mPGvq4dlv5y/x55qvH1LgM=</string>
-    <key>SUScheduledCheckInterval</key><integer>3600</integer>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.folder</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>MacCommander</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.chadcommander.ChadCommander</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Chad Commander</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.6.0</string>
+	<key>CFBundleVersion</key>
+	<string>8</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Chad Commander needs access to browse and manage files on your Desktop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Chad Commander needs access to browse and manage files in Documents.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Chad Commander needs access to browse and manage downloaded files.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Chad Commander needs access to browse and manage files on network volumes you open.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Chad Commander needs access to browse and manage files on removable disks you open.</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://chadcommander.org/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Tt8rHNHjM64WzdHoQwf56mPGvq4dlv5y/x55qvH1LgM=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
 </dict>
 </plist>

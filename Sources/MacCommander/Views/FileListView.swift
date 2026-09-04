@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct FileListView: View {
@@ -5,20 +6,28 @@ struct FileListView: View {
     @ObservedObject var model: PaneModel
     let side: PaneSide
     @FocusState private var listFocused: Bool
+    @State private var resizingColumn: FileListColumn?
+    @State private var resizeStartWidth: CGFloat = 0
+    @State private var hoveredResizeColumn: FileListColumn?
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: FileListMetrics.columnSpacing) {
                 sortButton(.name, width: nil)
                 Spacer(minLength: 0)
                 ForEach(visibleColumns) { column in
-                    sortButton(column.sort, width: width(for: column))
+                    resizableSortButton(for: column)
                 }
                 columnsMenu
+                    .frame(width: FileListMetrics.columnsMenuWidth)
             }
             .font(.system(size: 10.5, weight: .semibold))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
+            // Line the header up with the row content: names start after the
+            // row inset and icon, and the trailing edge leaves room for the
+            // columns menu so every header sits above its own column.
+            .padding(.leading, FileListMetrics.rowInset + FileListMetrics.iconWidth + FileListMetrics.columnSpacing)
+            .padding(.trailing, FileListMetrics.rowInset)
             .frame(height: 20)
             .background(Color(nsColor: .controlBackgroundColor))
 
@@ -26,7 +35,12 @@ struct FileListView: View {
                 List(model.displayItems) { item in
                     itemRow(item)
                         .id(item.url)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
+                        .listRowInsets(EdgeInsets(
+                            top: 0,
+                            leading: FileListMetrics.rowInset,
+                            bottom: 0,
+                            trailing: FileListMetrics.rowInset + FileListMetrics.columnsMenuWidth + FileListMetrics.columnSpacing
+                        ))
                         .listRowSeparator(.hidden)
                         .listRowBackground(selectionBackground(for: item))
                 }
@@ -53,8 +67,8 @@ struct FileListView: View {
 
     @ViewBuilder
     private func itemRow(_ item: FileItem) -> some View {
-        let row = HStack(spacing: 5) {
-            FileIcon(url: item.url, size: 14)
+        let row = HStack(spacing: FileListMetrics.columnSpacing) {
+            FileIcon(url: item.url, size: FileListMetrics.iconWidth)
             Text(item.name).lineLimit(1)
             Spacer(minLength: 3)
             ForEach(visibleColumns) { column in
@@ -107,13 +121,92 @@ struct FileListView: View {
             else { model.sort = sort; model.ascending = true }
         } label: {
             HStack(spacing: 3) {
-                Text(sort.rawValue)
+                Text(sort.rawValue).lineLimit(1)
                 if model.sort == sort { Image(systemName: model.ascending ? "chevron.up" : "chevron.down").font(.system(size: 8)) }
             }
             .frame(width: width, alignment: headerAlignment(for: sort))
         }
         .buttonStyle(.plain)
         .controlTooltip("Sort by \(sort.rawValue)")
+    }
+
+    private func resizableSortButton(for column: FileListColumn) -> some View {
+        sortButton(column.sort, width: width(for: column))
+            .overlay(alignment: .leading) {
+                columnResizeHandle(for: column)
+            }
+    }
+
+    private func columnResizeHandle(for column: FileListColumn) -> some View {
+        let isHighlighted = hoveredResizeColumn == column || resizingColumn == column
+
+        // The grab strip stays inside the column it resizes: an overlay that
+        // hangs over the neighbouring header is ambiguous to hit-test, so the
+        // drag would land on the sort button instead of the handle.
+        return ZStack(alignment: .leading) {
+            Rectangle()
+                .fill(isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear)
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor))
+                .frame(width: 1)
+                .padding(.vertical, 3)
+                .opacity(isHighlighted ? 0.95 : 0.35)
+        }
+        .frame(width: 10, height: 20)
+        .contentShape(Rectangle())
+        .onHover { isHovering in
+            hoveredResizeColumn = isHovering ? column : nil
+            if isHovering {
+                NSCursor.resizeLeftRight.set()
+            } else if resizingColumn == nil {
+                NSCursor.arrow.set()
+            }
+        }
+        // Global coordinates: the handle moves with the column edge it
+        // drags, and a local translation would cancel its own movement out.
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    let initialWidth: CGFloat
+                    if resizingColumn == column {
+                        initialWidth = resizeStartWidth
+                    } else {
+                        initialWidth = width(for: column)
+                        resizeStartWidth = initialWidth
+                        resizingColumn = column
+                    }
+                    NSCursor.resizeLeftRight.set()
+                    model.setListColumnWidth(
+                        column,
+                        to: Double(initialWidth - value.translation.width)
+                    )
+                }
+                .onEnded { _ in
+                    resizingColumn = nil
+                    if hoveredResizeColumn == column {
+                        NSCursor.resizeLeftRight.set()
+                    } else {
+                        NSCursor.arrow.set()
+                    }
+                }
+        )
+        .onTapGesture(count: 2) {
+            model.resetListColumnWidth(column)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Resize \(column.rawValue) column")
+        .accessibilityValue("\(Int(width(for: column))) points")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                model.setListColumnWidth(column, to: model.listColumnWidth(for: column) + 12)
+            case .decrement:
+                model.setListColumnWidth(column, to: model.listColumnWidth(for: column) - 12)
+            @unknown default:
+                break
+            }
+        }
+        .controlTooltip("Drag to resize the \(column.rawValue) column; double-click to reset it")
     }
 
     private var visibleColumns: [FileListColumn] {
@@ -137,14 +230,7 @@ struct FileListView: View {
     }
 
     private func width(for column: FileListColumn) -> CGFloat {
-        switch column {
-        case .size, .version: 78
-        case .kind: 110
-        case .sharedBy, .iCloudStatus: 105
-        case .comments: 150
-        case .tags: 120
-        case .modified, .created, .lastOpened, .added: 130
-        }
+        CGFloat(model.listColumnWidth(for: column))
     }
 
     private func alignment(for column: FileListColumn) -> Alignment {
@@ -168,6 +254,7 @@ struct FileListView: View {
                     get: { model.visibleListColumns.contains(column) },
                     set: { model.setListColumn(column, isVisible: $0) }
                 ))
+                .tint(.blue)
                 .controlTooltip("Show or hide the \(column.rawValue) column")
             }
         } label: {
@@ -175,7 +262,7 @@ struct FileListView: View {
                 .accessibilityLabel("Columns")
         }
         .menuStyle(.borderlessButton)
-        .fixedSize()
+        .menuIndicator(.hidden)
         .controlTooltip("Choose visible columns")
     }
 

@@ -4,12 +4,14 @@
 set -euo pipefail
 
 PROJECT_DIR="${0:A:h:h}"
+source "$PROJECT_DIR/Scripts/release-common.sh"
 APP_NAME="Chad Commander"
 ARTIFACT_NAME="Chad-Commander"
 INFO_PLIST="$PROJECT_DIR/Info.plist"
 APP_PATH="$PROJECT_DIR/Build/$APP_NAME.app"
 DIST_DIR="${1:-$PROJECT_DIR/dist}"
-KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-notarytool}"
+KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-${CHAD_RELEASE_NOTARY_PROFILE:-notarytool}}"
+NOTARY_KEYCHAIN="${NOTARY_KEYCHAIN:-${CHAD_RELEASE_NOTARY_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}}"
 AUTO_BUMP_MINOR="${AUTO_BUMP_MINOR:-1}"
 STAGING_DIR=""
 
@@ -49,12 +51,6 @@ bump_minor_version() {
     print "Version bumped: $current_version ($current_build) -> $new_version ($((current_build + 1)))"
 }
 
-if [[ "$AUTO_BUMP_MINOR" == "1" ]]; then
-    bump_minor_version
-else
-    print "Version bump skipped (AUTO_BUMP_MINOR=0)"
-fi
-
 SIGNING_IDENTITY="${CHAD_COMMANDER_SIGNING_IDENTITY:-}"
 if [[ -z "$SIGNING_IDENTITY" ]]; then
     SIGNING_IDENTITY="$(
@@ -66,8 +62,17 @@ fi
 [[ -n "$SIGNING_IDENTITY" ]] || fail "No Developer ID Application identity is installed."
 
 if [[ "${SKIP_NOTARIZE:-0}" != "1" ]]; then
-    xcrun notarytool history --keychain-profile "$KEYCHAIN_PROFILE" >/dev/null 2>&1 \
-        || fail "No usable notarytool profile named '$KEYCHAIN_PROFILE'."
+    xcrun notarytool history \
+        --keychain-profile "$KEYCHAIN_PROFILE" \
+        --keychain "$NOTARY_KEYCHAIN" \
+        >/dev/null 2>&1 \
+        || fail "No usable notarytool profile named '$KEYCHAIN_PROFILE'. Run make setup-release once."
+fi
+
+if [[ "$AUTO_BUMP_MINOR" == "1" ]]; then
+    bump_minor_version
+else
+    print "Version bump skipped (AUTO_BUMP_MINOR=0)"
 fi
 
 print "Building and signing $APP_NAME…"
@@ -102,6 +107,7 @@ fi
 print "Submitting DMG to Apple Notary Service…"
 xcrun notarytool submit "$DMG_PATH" \
     --keychain-profile "$KEYCHAIN_PROFILE" \
+    --keychain "$NOTARY_KEYCHAIN" \
     --wait
 
 print "Stapling tickets…"

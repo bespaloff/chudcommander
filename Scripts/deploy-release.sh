@@ -6,17 +6,18 @@ set -euo pipefail
 APP_NAME="Chad Commander"
 ARTIFACT_NAME="Chad-Commander"
 PROJECT_DIR="${0:A:h:h}"
+source "$PROJECT_DIR/Scripts/release-common.sh"
 DIST_DIR="$PROJECT_DIR/dist"
 APP_PATH="$PROJECT_DIR/Build/$APP_NAME.app"
 INFO_PLIST="$PROJECT_DIR/Info.plist"
 
 # Deployment details are intentionally supplied by the maintainer's environment
 # rather than committed to this public repository.
-REMOTE_HOST="${REMOTE_HOST:-}"
-REMOTE_USER="${REMOTE_USER:-}"
-REMOTE_LANDING="${REMOTE_LANDING:-}"
-PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://chadcommander.org}"
-SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10)
+REMOTE_HOST="${REMOTE_HOST:-${CHAD_RELEASE_REMOTE_HOST:-}}"
+REMOTE_USER="${REMOTE_USER:-${CHAD_RELEASE_REMOTE_USER:-}}"
+REMOTE_LANDING="${REMOTE_LANDING:-${CHAD_RELEASE_REMOTE_LANDING:-}}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-${CHAD_RELEASE_PUBLIC_BASE_URL:-https://chadcommander.org}}"
+SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10)
 
 DRY_RUN="${DRY_RUN:-0}"
 VERIFY_PUBLIC_RELEASE="${VERIFY_PUBLIC_RELEASE:-1}"
@@ -171,20 +172,11 @@ fi
 [[ -n "$REMOTE_LANDING" ]] || fail "REMOTE_LANDING is required for deployment."
 
 SSH_CMD=(ssh "${SSH_OPTS[@]}")
-RSYNC_RSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10"
+RSYNC_RSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10"
 info "Testing SSH connection…"
-if ssh "${SSH_OPTS[@]}" -o BatchMode=yes "$REMOTE_USER@$REMOTE_HOST" 'echo ok' >/dev/null 2>&1; then
-    ok "Using SSH key authentication"
-else
-    command -v sshpass >/dev/null || fail "SSH key authentication failed and sshpass is not installed."
-    read -rs "SSHPASS?SSH password for $REMOTE_USER@$REMOTE_HOST: "
-    print
-    export SSHPASS
-    SSH_CMD=(sshpass -e ssh "${SSH_OPTS[@]}")
-    RSYNC_RSH="sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10"
-    "${SSH_CMD[@]}" "$REMOTE_USER@$REMOTE_HOST" 'echo ok' >/dev/null \
-        || fail "Cannot connect to $REMOTE_HOST."
-fi
+"${SSH_CMD[@]}" "$REMOTE_USER@$REMOTE_HOST" 'echo ok' >/dev/null 2>&1 \
+    || fail "SSH key authentication failed for $REMOTE_USER@$REMOTE_HOST. Run make setup-release; password fallback is disabled."
+ok "Using SSH key authentication"
 
 "${SSH_CMD[@]}" "$REMOTE_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_LANDING'"
 
