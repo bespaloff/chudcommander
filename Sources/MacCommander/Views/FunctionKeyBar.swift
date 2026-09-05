@@ -8,6 +8,7 @@ struct FunctionKeyBar: View {
     var body: some View {
         HStack(spacing: 1 * scale) {
             favoriteAction
+            action("⇧⌘B", "Favorites", tooltip: "Browse and filter favorite folders") { state.showFavorites() }
             action("F3", "View") { state.quickLookSelection() }
             action("F4", "Open") { state.openSelection() }
             action("F5", "Copy") { state.copySelection() }
@@ -66,6 +67,7 @@ struct FunctionKeyBar: View {
         _ key: String,
         _ title: String,
         isActive: Bool = false,
+        tooltip: String? = nil,
         perform: @escaping () -> Void
     ) -> some View {
         Button(action: perform) {
@@ -91,6 +93,6 @@ struct FunctionKeyBar: View {
             )
         }
         .buttonStyle(.plain)
-        .controlTooltip(title, shortcut: key)
+        .controlTooltip(tooltip ?? title, shortcut: key)
     }
 }
